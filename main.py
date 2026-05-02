@@ -3,46 +3,69 @@ import pandas as pd
 import time
 import sys
 
+
 def get_ohlc(symbol="BTCUSDT"):
-    url = f"https://api.binance.com/api/v3/klines"
+    url = "https://api.binance.com/api/v3/klines"
     params = {
         "symbol": symbol,
         "interval": "1m",
         "limit": 50
     }
 
-    response = requests.get(url, params=params, timeout=10)
-    data = response.json()
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        data = response.json()
 
-    df = pd.DataFrame(data, columns=[
-        'time','open','high','low','close','volume',
-        'close_time','qav','trades','tbbav','tbqav','ignore'
-    ])
+        # Validate response
+        if not isinstance(data, list) or len(data) == 0:
+            print(f"⚠️ Invalid/empty response for {symbol}: {data}")
+            return None
 
-    df['close'] = df['close'].astype(float)
-    df['volume'] = df['volume'].astype(float)
+        df = pd.DataFrame(data, columns=[
+            'time','open','high','low','close','volume',
+            'close_time','qav','trades','tbbav','tbqav','ignore'
+        ])
 
-    return df
+        if df.empty:
+            print(f"⚠️ DataFrame empty for {symbol}")
+            return None
+
+        df['close'] = df['close'].astype(float)
+        df['volume'] = df['volume'].astype(float)
+
+        return df
+
+    except Exception as e:
+        print(f"❌ API error for {symbol}: {e}")
+        return None
 
 
 def run():
+    symbol = "BTCUSDT"
+
     while True:
         try:
             print("🔍 Fetching BTCUSDT 1m data...")
             sys.stdout.flush()
 
-            df = get_ohlc("BTCUSDT")
+            df = get_ohlc(symbol)
+
+            if df is None or len(df) == 0:
+                print("⚠️ Skipping due to no data")
+                sys.stdout.flush()
+                time.sleep(10)
+                continue
 
             last = df.iloc[-1]
 
-            print(f"Price: {last['close']} | Volume: {last['volume']}")
+            print(f"✅ {symbol} | Price: {last['close']} | Volume: {last['volume']}")
             print("-" * 40)
             sys.stdout.flush()
 
             time.sleep(20)
 
         except Exception as e:
-            print(f"❌ Error: {e}")
+            print(f"❌ MAIN LOOP ERROR: {e}")
             sys.stdout.flush()
             time.sleep(10)
 
