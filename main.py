@@ -3,9 +3,18 @@ import pandas as pd
 import time
 import sys
 
+# CoinGecko coin IDs (not symbols)
+COINS = {
+    "BTC": "bitcoin",
+    "ETH": "ethereum",
+    "SOL": "solana",
+    "XRP": "ripple",
+    "BNB": "binancecoin"
+}
 
-def get_ohlc(symbol="bitcoin"):
-    url = f"https://api.coingecko.com/api/v3/coins/{symbol}/ohlc"
+
+def get_ohlc(coin_id):
+    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/ohlc"
 
     params = {
         "vs_currency": "usd",
@@ -16,51 +25,58 @@ def get_ohlc(symbol="bitcoin"):
         response = requests.get(url, params=params, timeout=10)
 
         if response.status_code != 200:
-            print(f"⚠️ HTTP error {response.status_code}")
+            print(f"⚠️ HTTP error {response.status_code} for {coin_id}")
             return None
 
         data = response.json()
 
         if not isinstance(data, list) or len(data) == 0:
-            print("⚠️ Empty data")
+            print(f"⚠️ Empty data for {coin_id}")
             return None
 
         df = pd.DataFrame(data, columns=[
             'time','open','high','low','close'
         ])
 
-        # Fake volume (CoinGecko OHLC doesn't include volume)
+        # CoinGecko OHLC does not include volume → placeholder
         df['volume'] = 1  
 
         return df
 
     except Exception as e:
-        print(f"❌ API error: {e}")
+        print(f"❌ API error for {coin_id}: {e}")
         return None
 
-def run():
-    symbol = "BTCUSDT"
 
+def run():
     while True:
         try:
-            print("🔍 Fetching BTCUSDT 1m data (Bybit)...")
+            print("🔍 Scanning coins (CoinGecko)...")
             sys.stdout.flush()
 
-            df = get_ohlc(symbol)
+            for symbol, coin_id in COINS.items():
+                try:
+                    time.sleep(1)  # avoid rate limit
 
-            if df is None or len(df) == 0:
-                print("⚠️ Skipping due to no data")
-                sys.stdout.flush()
-                time.sleep(10)
-                continue
+                    df = get_ohlc(coin_id)
 
-            last = df.iloc[-1]
+                    if df is None or len(df) == 0:
+                        print(f"⚠️ Skipping {symbol}")
+                        continue
 
-            print(f"✅ {symbol} | Price: {last['close']} | Volume: {last['volume']}")
-            print("-" * 40)
+                    last = df.iloc[-1]
+
+                    print(f"✅ {symbol} | Price: {last['close']}")
+                    sys.stdout.flush()
+
+                except Exception as e:
+                    print(f"❌ {symbol} error: {e}")
+                    sys.stdout.flush()
+
+            print("=" * 50)
             sys.stdout.flush()
 
-            time.sleep(1)
+            time.sleep(30)
 
         except Exception as e:
             print(f"❌ MAIN LOOP ERROR: {e}")
@@ -69,6 +85,6 @@ def run():
 
 
 if __name__ == "__main__":
-    print("🚀 Bybit Test Started (No Binance)")
+    print("🚀 CoinGecko Scanner Started (Railway Safe)")
     sys.stdout.flush()
     run()
