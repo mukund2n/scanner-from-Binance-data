@@ -4,59 +4,39 @@ import time
 import sys
 
 
-def get_ohlc(symbol="BTCUSDT"):
-    url = "https://api.bybit.com/v5/market/kline"
+def get_ohlc(symbol="bitcoin"):
+    url = f"https://api.coingecko.com/api/v3/coins/{symbol}/ohlc"
 
     params = {
-        "category": "linear",
-        "symbol": symbol,
-        "interval": "1",
-        "limit": 50
-    }
-
-    headers = {
-        "User-Agent": "Mozilla/5.0"
+        "vs_currency": "usd",
+        "days": "1"
     }
 
     try:
-        response = requests.get(url, params=params, headers=headers, timeout=10)
+        response = requests.get(url, params=params, timeout=10)
 
-        # 🔴 FIRST check raw response
         if response.status_code != 200:
-            print(f"⚠️ HTTP error {response.status_code}: {response.text}")
+            print(f"⚠️ HTTP error {response.status_code}")
             return None
 
-        try:
-            data = response.json()
-        except Exception:
-            print(f"⚠️ Non-JSON response: {response.text[:100]}")
+        data = response.json()
+
+        if not isinstance(data, list) or len(data) == 0:
+            print("⚠️ Empty data")
             return None
 
-        if data.get("retCode") != 0:
-            print(f"⚠️ API error: {data}")
-            return None
-
-        candles = data.get("result", {}).get("list", [])
-
-        if not candles:
-            print(f"⚠️ No candle data for {symbol}")
-            return None
-
-        candles.reverse()
-
-        df = pd.DataFrame(candles, columns=[
-            'time','open','high','low','close','volume','turnover'
+        df = pd.DataFrame(data, columns=[
+            'time','open','high','low','close'
         ])
 
-        df['close'] = df['close'].astype(float)
-        df['volume'] = df['volume'].astype(float)
+        # Fake volume (CoinGecko OHLC doesn't include volume)
+        df['volume'] = 1  
 
         return df
 
     except Exception as e:
-        print(f"❌ API exception: {e}")
+        print(f"❌ API error: {e}")
         return None
-
 
 def run():
     symbol = "BTCUSDT"
