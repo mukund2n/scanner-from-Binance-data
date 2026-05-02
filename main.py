@@ -13,12 +13,10 @@ def get_prices():
     }
 
     try:
-        response = requests.get(url, params=params, timeout=10)
+        response = requests.get(url, params=params, timeout=5)
 
         if response.status_code == 429:
-            print("⚠️ Rate limit hit → Cooling down 90 sec...")
-            sys.stdout.flush()
-            time.sleep(90)
+            print("⚠️ Rate limit hit")
             return None
 
         if response.status_code != 200:
@@ -33,45 +31,44 @@ def get_prices():
 
 
 def run():
+    last_prices = {}
+    heartbeat = 0
+
     while True:
         try:
-            print("🔍 Scanning coins (Optimized)...")
+            print(f"💓 Alive tick {heartbeat}")
             sys.stdout.flush()
 
             data = get_prices()
 
-            if data is None:
-                print("⚠️ Skipping cycle due to API issue")
-                sys.stdout.flush()
-                time.sleep(30)
-                continue
-
-            for coin in COINS:
-                try:
+            if data:
+                for coin in COINS:
                     price = data.get(coin, {}).get("usd")
 
-                    if price is None:
-                        print(f"⚠️ Missing price for {coin}")
-                        continue
+                    if price:
+                        prev = last_prices.get(coin)
 
-                    print(f"✅ {coin.upper()} | Price: {price}")
+                        # Print only if changed (reduces spam)
+                        if prev != price:
+                            print(f"📊 {coin.upper()} → {price}")
+                            last_prices[coin] = price
 
-                except Exception as e:
-                    print(f"❌ Error for {coin}: {e}")
+            else:
+                print("⚠️ API skipped")
 
-            print("=" * 50)
+            heartbeat += 1
             sys.stdout.flush()
 
-            # 🔥 IMPORTANT: keep this slow
-            time.sleep(60)
+            # 🔥 KEY: small continuous activity
+            time.sleep(5)
 
         except Exception as e:
-            print(f"❌ MAIN LOOP ERROR: {e}")
+            print(f"❌ LOOP ERROR: {e}")
             sys.stdout.flush()
-            time.sleep(30)
+            time.sleep(3)
 
 
 if __name__ == "__main__":
-    print("🚀 CoinGecko Optimized Scanner Started")
+    print("🚀 Stable Scanner LIVE")
     sys.stdout.flush()
     run()
