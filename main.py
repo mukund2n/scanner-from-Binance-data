@@ -14,22 +14,34 @@ def get_ohlc(symbol="BTCUSDT"):
         "limit": 50
     }
 
-    try:
-        response = requests.get(url, params=params, timeout=10)
-        data = response.json()
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
 
-        # Check API response
+    try:
+        response = requests.get(url, params=params, headers=headers, timeout=10)
+
+        # 🔴 FIRST check raw response
+        if response.status_code != 200:
+            print(f"⚠️ HTTP error {response.status_code}: {response.text}")
+            return None
+
+        try:
+            data = response.json()
+        except Exception:
+            print(f"⚠️ Non-JSON response: {response.text[:100]}")
+            return None
+
         if data.get("retCode") != 0:
             print(f"⚠️ API error: {data}")
             return None
 
-        candles = data["result"]["list"]
+        candles = data.get("result", {}).get("list", [])
 
         if not candles:
             print(f"⚠️ No candle data for {symbol}")
             return None
 
-        # Reverse (Bybit gives latest first)
         candles.reverse()
 
         df = pd.DataFrame(candles, columns=[
@@ -42,7 +54,7 @@ def get_ohlc(symbol="BTCUSDT"):
         return df
 
     except Exception as e:
-        print(f"❌ API error: {e}")
+        print(f"❌ API exception: {e}")
         return None
 
 
@@ -68,7 +80,7 @@ def run():
             print("-" * 40)
             sys.stdout.flush()
 
-            time.sleep(20)
+            time.sleep(1)
 
         except Exception as e:
             print(f"❌ MAIN LOOP ERROR: {e}")
